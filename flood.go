@@ -31,6 +31,10 @@ func (f flooder) flood(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
+	if f.publisher == nil {
+		http.Error(w, "no queue to publish to", http.StatusServiceUnavailable)
+		return
+	}
 	n, err := strconv.Atoi(r.URL.Query().Get("n"))
 	if err != nil || n < 1 || n > maxFlood {
 		http.Error(w, "n must be 1 to 100000", http.StatusBadRequest)

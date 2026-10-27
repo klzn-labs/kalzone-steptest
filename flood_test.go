@@ -49,10 +49,20 @@ func Test_TheFloodNeedsTheKey(t *testing.T) {
 func Test_TheFloodRefusesABadCount(t *testing.T) {
 	for _, n := range []string{"0", "100001", "many"} {
 		w := httptest.NewRecorder()
-		flooder{key: "k"}.flood(w, floodRequest("k", n))
+		flooder{publisher: &countingPublisher{}, key: "k"}.flood(w, floodRequest("k", n))
 		if w.Code != http.StatusBadRequest {
 			t.Fatalf("n=%s: got %d", n, w.Code)
 		}
+	}
+}
+
+func Test_TheFloodNeedsAQueue(t *testing.T) {
+	w := httptest.NewRecorder()
+
+	flooder{key: "k"}.flood(w, floodRequest("k", "10"))
+
+	if w.Code != http.StatusServiceUnavailable {
+		t.Fatalf("got %d", w.Code)
 	}
 }
 

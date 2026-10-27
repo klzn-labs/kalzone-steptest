@@ -19,17 +19,28 @@ func main() {
 }
 
 func run() error {
-	db, err := sql.Open("mysql", os.Getenv("PLATFORM_DB_DSN"))
-	if err != nil {
-		return err
-	}
-	publisher, err := queue.FromEnv()
+	db, err := openDatabase(os.Getenv("PLATFORM_DB_DSN"))
 	if err != nil {
 		return err
 	}
 	b := burner{db: db, iterations: iterations()}
-	f := flooder{publisher: publisher, key: os.Getenv("FLOOD_KEY")}
+	f := flooder{publisher: queuePublisher(), key: os.Getenv("FLOOD_KEY")}
 	return http.ListenAndServe(":8080", routes(db, b, f))
+}
+
+func openDatabase(dsn string) (*sql.DB, error) {
+	if dsn == "" {
+		return nil, nil
+	}
+	return sql.Open("mysql", dsn)
+}
+
+func queuePublisher() publisher {
+	client, err := queue.FromEnv()
+	if err != nil {
+		return nil
+	}
+	return client
 }
 
 func routes(db *sql.DB, b burner, f flooder) *http.ServeMux {
@@ -42,6 +53,10 @@ func routes(db *sql.DB, b burner, f flooder) *http.ServeMux {
 
 func health(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if db == nil {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
 		if err := db.PingContext(r.Context()); err != nil {
 			http.Error(w, "database unreachable", http.StatusServiceUnavailable)
 			return
